@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@edgestation/sdk/manifest.schema.json",
   "name": "Jira board",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "The active sprint of a Jira board, column by column. Drag a card to another column to move the issue, or tap it to read the issue. For Jira Cloud and Jira Data Center.",
   "author": "ChainList",
   "minAppVersion": "0.5.0",
@@ -11,7 +11,9 @@
     "w": 4,
     "h": 2
   },
-  "permissions": ["fetch"],
+  "permissions": [
+    "fetch"
+  ],
   "settings": [
     {
       "key": "board",
