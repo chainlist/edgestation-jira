@@ -4,7 +4,7 @@
 	"version": "1.0.0",
 	"description": "The active sprint of a Jira board, column by column. Drag a card to another column to move the issue, or tap it to read the issue. For Jira Cloud and Jira Data Center.",
 	"author": "ChainList",
-	"minAppVersion": "0.1.1",
+	"minAppVersion": "0.5.0",
 	"main": "dist/main.js",
 	"icon": "icon.svg",
 	"size": {

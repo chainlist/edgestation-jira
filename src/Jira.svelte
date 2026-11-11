@@ -40,7 +40,7 @@
 		if (!jira || busy || moving.size) return;
 		busy = true;
 		try {
-			board = await jira.board(ref!.id);
+			board = await api.loading(jira.board(ref!.id));
 			failure = undefined;
 		} catch (error) {
 			console.warn('Jira:', error);
@@ -113,11 +113,10 @@
 	{:else if !token}
 		{@render message('No token yet', 'Set the token in Settings → Pages, by clicking this widget.')}
 	{:else if !board}
+		<!-- Until the first board comes, the app shows dots for `api.loading`. -->
 		{#if failure}
 			{@const [title, hint] = explain(failure)}
 			{@render message(title, hint)}
-		{:else}
-			{@render message('…')}
 		{/if}
 	{:else}
 		<!-- The details have no background of their own, so the board hides under them. It stays
