@@ -1,7 +1,8 @@
 <script lang="ts" module>
-	/** The time in ms that the user holds a card before it follows the finger. */
-	const HOLD_MS = 400;
-	/** The finger movement in px that changes a hold into a scroll or a page swipe. */
+	/**
+	 * The movement in px before a pressed card lifts. A smaller movement is a click. The page
+	 * swipe waits for 10 px, so the card lifts first.
+	 */
 	const SLOP_PX = 8;
 	const DAY_MS = 86_400_000;
 
@@ -31,12 +32,14 @@
 
 	let { api, board, moving, offline, onmove, onopen }: Props = $props();
 
-	/** A card that the finger holds. It is picked up after `HOLD_MS`. */
-	interface Hold {
+	/** A card that is pressed, but has not moved more than `SLOP_PX`. */
+	interface Press {
 		pointer: number;
+		issue: Issue;
+		from: number;
+		card: HTMLElement;
 		x: number;
 		y: number;
-		cancel: () => void;
 	}
 
 	/** A card that follows the finger. Positions are in px from the top left of the board. */
@@ -57,10 +60,10 @@
 
 	let root: HTMLElement;
 	const columnEls: HTMLElement[] = [];
-	let hold: Hold | undefined;
+	let pressed: Press | undefined;
 	let drag = $state<Drag>();
-	/** True if a hold picked up the card. Then the click at the end of the hold opens nothing. */
-	let held = false;
+	/** True if the press lifted the card. Then the click at the end of the drag opens nothing. */
+	let dragged = false;
 
 	const lanes = $derived(
 		board.columns.map((column) =>
@@ -85,42 +88,43 @@
 	});
 
 	function press(event: PointerEvent, issue: Issue, from: number) {
-		if (hold || drag || !event.isPrimary || event.button !== 0 || moving.has(issue.key)) return;
-		held = false;
+		if (pressed || drag || !event.isPrimary || event.button !== 0 || moving.has(issue.key)) return;
+		dragged = false;
 		const card = event.currentTarget as HTMLElement;
-		const { pointerId: pointer, clientX: x, clientY: y } = event;
-		const cancel = api.after(HOLD_MS, () => {
-			hold = undefined;
-			held = true;
-			const box = card.getBoundingClientRect();
-			const area = root.getBoundingClientRect();
-			drag = {
-				pointer,
-				issue,
-				from,
-				over: from,
-				x: x - area.left,
-				y: y - area.top,
-				dx: x - box.left,
-				dy: y - box.top,
-				width: box.width,
-				height: box.height
-			};
-			root.setPointerCapture(pointer);
-		});
-		hold = { pointer, x, y, cancel };
+		pressed = { pointer: event.pointerId, issue, from, card, x: event.clientX, y: event.clientY };
 	}
 
-	function release() {
-		hold?.cancel();
-		hold = undefined;
+	/** Makes the pressed card follow the pointer, from the point where the press started. */
+	function lift({ pointer, issue, from, card, x, y }: Press) {
+		const box = card.getBoundingClientRect();
+		drag = {
+			pointer,
+			issue,
+			from,
+			over: from,
+			x: 0,
+			y: 0,
+			dx: x - box.left,
+			dy: y - box.top,
+			width: box.width,
+			height: box.height
+		};
+		dragged = true;
+		root.setPointerCapture(pointer);
 	}
 
 	function move(event: PointerEvent) {
-		if (hold?.pointer === event.pointerId) {
-			// A move before the hold ends is a scroll or a page swipe. It is not a drag.
-			if (Math.hypot(event.clientX - hold.x, event.clientY - hold.y) > SLOP_PX) release();
-			return;
+		if (pressed?.pointer === event.pointerId) {
+			const dx = event.clientX - pressed.x;
+			const dy = event.clientY - pressed.y;
+			if (Math.hypot(dx, dy) <= SLOP_PX) return;
+			// A finger that goes up or down scrolls the column. A mouse has the wheel for that.
+			if (event.pointerType !== 'mouse' && Math.abs(dy) > Math.abs(dx)) {
+				pressed = undefined;
+				return;
+			}
+			lift(pressed);
+			pressed = undefined;
 		}
 		if (event.pointerId !== drag?.pointer) return;
 		// The page does not get the drag, so it does not swipe.
@@ -138,9 +142,12 @@
 		};
 	}
 
-	/** Ends a hold or a drag. Only a lift of the finger moves the card. A cancel puts it back. */
+	/** Ends a press or a drag. Only a lift of the finger moves the card. A cancel puts it back. */
 	function end(event: PointerEvent) {
-		release();
+		// A touch starts with an implicit capture on the pressed element. When the board takes the
+		// capture, that element gets a lostpointercapture, and it bubbles up to here. It is no end.
+		if (event.type === 'lostpointercapture' && event.target !== root) return;
+		if (pressed?.pointer === event.pointerId) pressed = undefined;
 		if (event.pointerId !== drag?.pointer) return;
 		const { issue, from, over } = drag;
 		drag = undefined;
@@ -170,7 +177,7 @@
 	</span>
 {/snippet}
 
-<!-- The hold and drag are touch shortcuts for a move. Tap opens the issue. -->
+<!-- The drag is a touch shortcut for a move. Tap opens the issue. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="board"
@@ -207,7 +214,7 @@
 									class:lifted={drag?.issue.key === issue.key}
 									class:moving={moving.has(issue.key)}
 									onpointerdown={(event) => press(event, issue, i)}
-									onclick={() => !held && onopen(issue.key)}
+									onclick={() => !dragged && onopen(issue.key)}
 								>
 									{@render card(issue)}
 								</button>
@@ -282,7 +289,9 @@
 		flex-direction: column;
 		min-width: 0;
 		border-radius: var(--radius);
-		background: var(--muted);
+		/* The app draws the widget card with the opacity and blur of the theme. A tint of the
+		   text color keeps them visible, in a light and a dark theme. */
+		background: color-mix(in oklch, var(--card-foreground) 5%, transparent);
 		transition: box-shadow 0.15s;
 	}
 
@@ -334,9 +343,8 @@
 		padding: 0.6em 0.7em;
 		box-sizing: border-box;
 		border-radius: calc(var(--radius) * 0.75);
-		background: var(--card);
+		background: color-mix(in oklch, var(--card-foreground) 8%, transparent);
 		color: var(--card-foreground);
-		box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
 		transition: opacity 0.15s;
 	}
 
@@ -385,6 +393,10 @@
 	.ghost {
 		position: absolute;
 		z-index: 1;
+		/* The card in the hand is solid, so the lanes under it do not show through its text. */
+		background: var(--card);
+		outline: 2px solid var(--primary);
+		outline-offset: -2px;
 		box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
 		pointer-events: none;
 		transform: rotate(2deg);

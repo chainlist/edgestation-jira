@@ -99,7 +99,6 @@
 		gap: 0.75em;
 		padding: 1em 1.25em;
 		box-sizing: border-box;
-		background: var(--card);
 		color: var(--card-foreground);
 	}
 
@@ -116,8 +115,8 @@
 	.status {
 		padding: 0.15em 0.6em;
 		border-radius: 999px;
-		background: var(--secondary);
-		color: var(--secondary-foreground);
+		background: color-mix(in oklch, var(--primary) 25%, transparent);
+		color: var(--card-foreground);
 		font-size: 0.8em;
 		font-weight: 600;
 		text-transform: uppercase;
@@ -133,7 +132,7 @@
 	}
 
 	.close:active {
-		background: var(--muted);
+		background: color-mix(in oklch, var(--card-foreground) 10%, transparent);
 	}
 
 	.close svg {

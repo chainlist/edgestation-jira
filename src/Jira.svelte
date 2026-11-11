@@ -120,14 +120,18 @@
 			{@render message('…')}
 		{/if}
 	{:else}
-		<BoardView
-			{api}
-			{board}
-			{moving}
-			offline={!!failure}
-			onmove={move}
-			onopen={(key) => (open = key)}
-		/>
+		<!-- The details have no background of their own, so the board hides under them. It stays
+		     mounted, so its columns keep their scroll. -->
+		<div class="view" class:covered={open}>
+			<BoardView
+				{api}
+				{board}
+				{moving}
+				offline={!!failure}
+				onmove={move}
+				onopen={(key) => (open = key)}
+			/>
+		</div>
 		{#if notice}
 			<p class="notice" role="alert">{notice}</p>
 		{/if}
@@ -146,6 +150,14 @@
 		overflow: hidden;
 		/* The text scales with the cell, and stays readable in a small cell. */
 		font-size: clamp(10px, min(2.6cqh, 1.3cqw), 18px);
+	}
+
+	.view {
+		height: 100%;
+	}
+
+	.covered {
+		visibility: hidden;
 	}
 
 	/* The board and the details use these buttons. */
@@ -194,8 +206,8 @@
 		margin: 0;
 		padding: 0.6em 0.9em;
 		border-radius: var(--radius);
-		background: var(--destructive);
-		color: white;
+		background: color-mix(in oklch, var(--destructive) 30%, var(--card));
+		color: var(--card-foreground);
 		pointer-events: none;
 	}
 </style>

@@ -5,9 +5,10 @@ column by column, as Jira shows it. It works with Jira Cloud and with Jira Data 
 
 - **Tap** a card to read the issue: its type, status, assignee, reporter, priority and
   description.
-- **Hold** a card until it lifts, then drag it to another column to move the issue. The widget
-  uses the first transition that goes to a status of that column. A transition that asks for
-  more fields fails with Jira's message: make that move in Jira.
+- **Drag** a card to another column to move the issue. The widget uses the first transition that
+  goes to a status of that column. A transition that asks for more fields fails with Jira's
+  message: make that move in Jira. On a touch screen, drag the card sideways: a finger that goes
+  up or down scrolls the column.
 
 The board loads again every minute while its page shows. It shows Scrum boards: a Kanban board
 has no sprint.
